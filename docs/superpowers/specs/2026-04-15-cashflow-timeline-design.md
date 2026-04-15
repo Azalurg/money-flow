@@ -57,12 +57,27 @@ Out of scope:
 ## 3) UX and Visual Design
 
 ### Theme and style
-- Dark UI:
-  - page background around `#0f0f0f` / `#111827`
-  - surfaces around `#1c1c1e` / `#1f2937`
-- Accent color: teal/emerald (`#10b981` family)
+- Dark UI (Tokyo Night palette):
+  - page background: `#1a1b26`
+  - primary surfaces: `#24283b`
+  - secondary surfaces: `#1f2335`
+- Accent color: `#7aa2f7`
 - Typography: Inter (Google Fonts CDN)
 - Compact, clean controls; no gradient-heavy buttons; no decorative icon circles
+
+### Tokyo Night token mapping
+- `--bg`: `#1a1b26`
+- `--surface`: `#24283b`
+- `--surface-2`: `#1f2335`
+- `--text`: `#c0caf5`
+- `--muted`: `#9aa5ce`
+- `--border`: `#414868`
+- `--accent`: `#7aa2f7`
+- `--in`: `#9ece6a`
+- `--out`: `#f7768e`
+- `--danger`: `#f7768e`
+
+All component colors (hover/focus/border/badge/warning/undo/action states) are derived from these Tokyo Night base values.
 
 ### Top bar
 - App name
@@ -85,8 +100,8 @@ Out of scope:
   - description (or fallback text)
   - signed display amount (`+` for in, `-` for out)
 - Color coding:
-  - `in`: green (`#4ade80`-like)
-  - `out`: red (`#f87171`-like)
+  - `in`: Tokyo Night green (`#9ece6a`)
+  - `out`: Tokyo Night red (`#f7768e`)
   - negative balance: red emphasis
 - Bubble actions:
   - show pencil edit icon per transaction
@@ -323,6 +338,7 @@ Single render orchestrator:
 - Recurring mode can generate weekly, monthly, and every-N-days series.
 - Recurring descriptions follow `<Tytuł> i/X` numbering.
 - Out-of-range occurrences are skipped with `added/skipped` feedback.
+- Full UI colors (including hover/focus/states) follow Tokyo Night palette mapping.
 - Negative balance values are red; top bar warns if negative occurred historically.
 - Form validation works and prevents invalid transaction submission.
 - CSV import/export works with required schema and reports skipped rows.
