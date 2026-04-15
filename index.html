@@ -349,12 +349,18 @@
     .tx-bubble {
       max-width: 100%;
       width: min(320px, 100%);
+      min-height: 96px;
+      max-height: 96px;
       border: 1px solid var(--border);
       border-radius: 12px;
       background: #0b1220;
-      padding: 10px;
+      padding: 10px 40px 10px 10px;
       display: grid;
-      gap: 6px;
+      grid-template-rows: 1fr auto;
+      gap: 8px;
+      align-content: space-between;
+      overflow: hidden;
+      position: relative;
     }
 
     .tx-bubble.in {
@@ -371,7 +377,12 @@
       margin: 0;
       font-size: 0.9rem;
       color: #f3f4f6;
-      word-wrap: break-word;
+      line-height: 1.25;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
     }
 
     .tx-amount {
@@ -387,6 +398,77 @@
 
     .tx-bubble.out .tx-amount {
       color: var(--out);
+    }
+
+    .tx-edit-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 24px;
+      height: 24px;
+      border: 1px solid #4b5563;
+      border-radius: 999px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.92);
+      color: #d1d5db;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.94);
+      transition: opacity 120ms ease, transform 120ms ease, border-color 120ms ease;
+    }
+
+    .tx-bubble:hover .tx-edit-btn,
+    .tx-bubble:focus-within .tx-edit-btn {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    .tx-edit-btn:hover,
+    .tx-edit-btn:focus-visible {
+      border-color: rgba(16, 185, 129, 0.75);
+      color: #ecfeff;
+      outline: none;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 42;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(2, 6, 23, 0.72);
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: min(500px, 100%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .modal-card h2 {
+      margin: 0 0 12px;
+      font-size: 1.02rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 4px;
     }
 
     .axis-core {
@@ -480,10 +562,25 @@
       .tx-bubble {
         width: 100%;
         padding: 9px;
+        padding-right: 40px;
+      }
+
+      .tx-edit-btn {
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
       }
 
       .stats-grid {
         grid-template-columns: 1fr;
+      }
+    }
+
+    @media (hover: none), (pointer: coarse) {
+      .tx-edit-btn {
+        opacity: 1;
+        pointer-events: auto;
+        transform: none;
       }
     }
   </style>
@@ -615,6 +712,52 @@
     </section>
   </main>
 
+  <div id="editModal" class="modal-backdrop" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <h2 id="editModalTitle">Edycja transferu</h2>
+      <form id="editForm" novalidate>
+        <div class="form-row">
+          <label for="editDate">Data</label>
+          <input id="editDate" name="editDate" type="date" required>
+          <div id="editDateError" class="field-error" aria-live="polite"></div>
+        </div>
+
+        <div class="form-row">
+          <label for="editAmount">Kwota (PLN)</label>
+          <input id="editAmount" name="editAmount" type="number" step="0.01" min="0.01" required>
+          <div id="editAmountError" class="field-error" aria-live="polite"></div>
+        </div>
+
+        <div class="form-row">
+          <label>Typ operacji</label>
+          <div class="type-row">
+            <label id="editTypeInLabel" class="type-option" for="editTypeIn">
+              <input id="editTypeIn" type="radio" name="editType" value="in">
+              Wpłata
+            </label>
+            <label id="editTypeOutLabel" class="type-option" for="editTypeOut">
+              <input id="editTypeOut" type="radio" name="editType" value="out">
+              Wypłata
+            </label>
+          </div>
+          <div id="editTypeError" class="field-error" aria-live="polite"></div>
+        </div>
+
+        <div class="form-row">
+          <label for="editDescription">Opis (opcjonalny)</label>
+          <input id="editDescription" name="editDescription" type="text" maxlength="140">
+        </div>
+
+        <div id="editFormError" class="field-error" aria-live="polite"></div>
+
+        <div class="modal-actions">
+          <button id="editCancelBtn" type="button" class="btn">Anuluj</button>
+          <button type="submit" class="btn btn-primary">Zapisz zmiany</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     const state = {
       timelineConfig: {
@@ -627,7 +770,15 @@
       ui: {
         flashMessage: "",
         configError: "",
+        editingTransactionId: null,
+        lastEditTrigger: null,
         txErrors: {
+          date: "",
+          amount: "",
+          type: "",
+          form: ""
+        },
+        editErrors: {
           date: "",
           amount: "",
           type: "",
@@ -822,13 +973,21 @@
       listElement.classList.add("active");
 
       const transactionItems = rows.map((row) => {
-        const description = row.description ? escapeHtml(row.description) : "Brak opisu";
+        const descriptionText = row.description || "Brak opisu";
+        const description = escapeHtml(descriptionText);
         const signedAmount = row.type === "in"
           ? `+${formatCurrency(row.amount)}`
           : `-${formatCurrency(row.amount)}`;
         const balanceClass = row.runningBalance < 0 ? "axis-balance negative" : "axis-balance";
         const bubble = `
           <div class="tx-bubble ${row.type}">
+            <button
+              type="button"
+              class="tx-edit-btn"
+              data-edit-id="${row.id}"
+              aria-label="Edytuj transfer"
+              title="Edytuj transfer"
+            >✎</button>
             <p class="tx-desc">${description}</p>
             <p class="tx-amount">${signedAmount}</p>
           </div>
@@ -865,6 +1024,13 @@
       document.getElementById("txFormError").textContent = state.ui.txErrors.form;
     }
 
+    function renderEditErrors() {
+      document.getElementById("editDateError").textContent = state.ui.editErrors.date;
+      document.getElementById("editAmountError").textContent = state.ui.editErrors.amount;
+      document.getElementById("editTypeError").textContent = state.ui.editErrors.type;
+      document.getElementById("editFormError").textContent = state.ui.editErrors.form;
+    }
+
     function renderTransactionFormState() {
       const hasRange = Boolean(state.timelineConfig.startDate && state.timelineConfig.endDate);
       const dateInput = document.getElementById("txDate");
@@ -893,6 +1059,12 @@
 
       document.getElementById("typeInLabel").classList.toggle("active-in", inChecked);
       document.getElementById("typeOutLabel").classList.toggle("active-out", outChecked);
+
+      const editInChecked = document.getElementById("editTypeIn").checked;
+      const editOutChecked = document.getElementById("editTypeOut").checked;
+
+      document.getElementById("editTypeInLabel").classList.toggle("active-in", editInChecked);
+      document.getElementById("editTypeOutLabel").classList.toggle("active-out", editOutChecked);
     }
 
     function renderAll() {
@@ -903,6 +1075,7 @@
       renderTimeline(rows);
       renderConfigErrors();
       renderTransactionErrors();
+      renderEditErrors();
       renderTransactionFormState();
       renderTypeSelection();
       renderFlashMessage();
@@ -915,6 +1088,78 @@
         type: "",
         form: ""
       };
+    }
+
+    function resetEditErrors() {
+      state.ui.editErrors = {
+        date: "",
+        amount: "",
+        type: "",
+        form: ""
+      };
+    }
+
+    function isEditModalOpen() {
+      return document.getElementById("editModal").classList.contains("open");
+    }
+
+    function openEditModal(transactionId, triggerElement) {
+      const transaction = state.transactions.find((item) => item.id === transactionId);
+      if (!transaction) {
+        state.ui.flashMessage = "Nie znaleziono transakcji do edycji.";
+        renderFlashMessage();
+        return;
+      }
+
+      state.ui.editingTransactionId = transaction.id;
+      state.ui.lastEditTrigger = triggerElement || null;
+      resetEditErrors();
+
+      const editDateInput = document.getElementById("editDate");
+      editDateInput.min = state.timelineConfig.startDate || "";
+      editDateInput.max = state.timelineConfig.endDate || "";
+      editDateInput.value = transaction.date;
+      document.getElementById("editAmount").value = String(transaction.amount);
+      document.getElementById("editDescription").value = transaction.description || "";
+
+      document.getElementById("editTypeIn").checked = transaction.type === "in";
+      document.getElementById("editTypeOut").checked = transaction.type === "out";
+
+      const modal = document.getElementById("editModal");
+      modal.hidden = false;
+      modal.classList.add("open");
+
+      renderTypeSelection();
+      renderEditErrors();
+      state.ui.flashMessage = "";
+      renderFlashMessage();
+
+      editDateInput.focus();
+    }
+
+    function closeEditModal(restoreFocus = true) {
+      if (!isEditModalOpen()) {
+        state.ui.editingTransactionId = null;
+        state.ui.lastEditTrigger = null;
+        resetEditErrors();
+        return;
+      }
+
+      const modal = document.getElementById("editModal");
+      modal.classList.remove("open");
+      modal.hidden = true;
+
+      state.ui.editingTransactionId = null;
+      resetEditErrors();
+
+      if (restoreFocus && state.ui.lastEditTrigger instanceof HTMLElement) {
+        state.ui.lastEditTrigger.focus();
+      }
+      state.ui.lastEditTrigger = null;
+
+      document.getElementById("editForm").reset();
+      renderEditErrors();
+      renderTypeSelection();
     }
 
     function validateConfigInput(startDate, endDate) {
@@ -1018,6 +1263,25 @@
       sortTransactionsInState();
       resetTxErrors();
       state.ui.flashMessage = "Transakcja została dodana.";
+      return true;
+    }
+
+    function saveEditedTransaction(input) {
+      const transaction = state.transactions.find((item) => item.id === state.ui.editingTransactionId);
+      if (!transaction) {
+        state.ui.editErrors.form = "Nie znaleziono transakcji do aktualizacji.";
+        renderEditErrors();
+        return false;
+      }
+
+      transaction.date = input.date;
+      transaction.amount = input.amount;
+      transaction.type = input.type;
+      transaction.description = input.description;
+
+      sortTransactionsInState();
+      closeEditModal();
+      state.ui.flashMessage = "Transakcja została zaktualizowana.";
       return true;
     }
 
@@ -1139,6 +1403,7 @@
 
       state.ui.configError = "";
       resetTxErrors();
+      closeEditModal(false);
       state.ui.flashMessage = `Zaimportowano ${parsedCsv.imported.length} wierszy, pominięto ${parsedCsv.skipped}.`;
 
       document.getElementById("startDate").value = minDate;
@@ -1185,6 +1450,7 @@
       event.preventDefault();
       const formData = new FormData(event.currentTarget);
       applyTimelineConfig(formData);
+      closeEditModal(false);
       renderAll();
     }
 
@@ -1233,6 +1499,70 @@
       }
     }
 
+    function handleEditTypeChange() {
+      renderTypeSelection();
+      if (state.ui.editErrors.type) {
+        state.ui.editErrors.type = "";
+        renderEditErrors();
+      }
+    }
+
+    function handleEditFormSubmit(event) {
+      event.preventDefault();
+      if (state.ui.editingTransactionId === null) {
+        state.ui.editErrors.form = "Brak wybranej transakcji do edycji.";
+        renderEditErrors();
+        return;
+      }
+
+      const formData = new FormData(event.currentTarget);
+      const input = {
+        date: String(formData.get("editDate") || ""),
+        amount: Number(formData.get("editAmount") || NaN),
+        type: String(formData.get("editType") || ""),
+        description: String(formData.get("editDescription") || "").trim()
+      };
+
+      const errors = validateTransactionInput(input);
+      state.ui.editErrors = errors;
+      if (hasAnyTxError(errors)) {
+        renderEditErrors();
+        return;
+      }
+
+      const saved = saveEditedTransaction(input);
+      if (saved) {
+        renderAll();
+      }
+    }
+
+    function handleTimelineClick(event) {
+      const editButton = event.target.closest("[data-edit-id]");
+      if (!editButton) {
+        return;
+      }
+
+      const id = Number(editButton.getAttribute("data-edit-id"));
+      if (!Number.isInteger(id)) {
+        return;
+      }
+
+      openEditModal(id, editButton);
+    }
+
+    function handleModalBackdropClick(event) {
+      const modal = document.getElementById("editModal");
+      if (event.target === modal) {
+        closeEditModal();
+      }
+    }
+
+    function handleDocumentKeydown(event) {
+      if (event.key === "Escape" && isEditModalOpen()) {
+        closeEditModal();
+      }
+    }
+
     function hasDraftInputData() {
       const startDateDraft = document.getElementById("startDate").value;
       const endDateDraft = document.getElementById("endDate").value;
@@ -1243,11 +1573,18 @@
       const txAmountDraftRaw = document.getElementById("txAmount").value.trim();
       const txDescriptionDraft = document.getElementById("txDescription").value.trim();
       const txTypeDraftSelected = Boolean(document.querySelector('input[name="txType"]:checked'));
+      const editDateDraft = document.getElementById("editDate").value;
+      const editAmountDraftRaw = document.getElementById("editAmount").value.trim();
+      const editDescriptionDraft = document.getElementById("editDescription").value.trim();
+      const editTypeDraftSelected = Boolean(document.querySelector('input[name="editType"]:checked'));
 
       const hasConfigDraft = Boolean(startDateDraft || endDateDraft || initialBalanceDraft !== 0);
       const hasTxDraft = Boolean(txDateDraft || txAmountDraftRaw || txDescriptionDraft || txTypeDraftSelected);
+      const hasEditDraft = Boolean(
+        isEditModalOpen() || editDateDraft || editAmountDraftRaw || editDescriptionDraft || editTypeDraftSelected
+      );
 
-      return hasConfigDraft || hasTxDraft;
+      return hasConfigDraft || hasTxDraft || hasEditDraft;
     }
 
     function hasEnteredData() {
@@ -1279,6 +1616,15 @@
 
       document.getElementById("txTypeIn").addEventListener("change", handleTypeChange);
       document.getElementById("txTypeOut").addEventListener("change", handleTypeChange);
+
+      document.getElementById("editForm").addEventListener("submit", handleEditFormSubmit);
+      document.getElementById("editCancelBtn").addEventListener("click", () => closeEditModal());
+      document.getElementById("editTypeIn").addEventListener("change", handleEditTypeChange);
+      document.getElementById("editTypeOut").addEventListener("change", handleEditTypeChange);
+      document.getElementById("timelineList").addEventListener("click", handleTimelineClick);
+      document.getElementById("editModal").addEventListener("click", handleModalBackdropClick);
+
+      document.addEventListener("keydown", handleDocumentKeydown);
 
       window.addEventListener("beforeunload", handleBeforeUnload);
 
