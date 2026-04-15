@@ -1233,6 +1233,40 @@
       }
     }
 
+    function hasDraftInputData() {
+      const startDateDraft = document.getElementById("startDate").value;
+      const endDateDraft = document.getElementById("endDate").value;
+      const initialBalanceDraftRaw = document.getElementById("initialBalance").value.trim();
+      const initialBalanceDraft = Number(initialBalanceDraftRaw === "" ? "0" : initialBalanceDraftRaw);
+
+      const txDateDraft = document.getElementById("txDate").value;
+      const txAmountDraftRaw = document.getElementById("txAmount").value.trim();
+      const txDescriptionDraft = document.getElementById("txDescription").value.trim();
+      const txTypeDraftSelected = Boolean(document.querySelector('input[name="txType"]:checked'));
+
+      const hasConfigDraft = Boolean(startDateDraft || endDateDraft || initialBalanceDraft !== 0);
+      const hasTxDraft = Boolean(txDateDraft || txAmountDraftRaw || txDescriptionDraft || txTypeDraftSelected);
+
+      return hasConfigDraft || hasTxDraft;
+    }
+
+    function hasEnteredData() {
+      const hasConfiguredTimeline = Boolean(
+        state.timelineConfig.startDate
+        || state.timelineConfig.endDate
+        || Number(state.timelineConfig.initialBalance) !== 0
+      );
+      return hasConfiguredTimeline || state.transactions.length > 0 || hasDraftInputData();
+    }
+
+    function handleBeforeUnload(event) {
+      if (!hasEnteredData()) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
     function init() {
       document.getElementById("configForm").addEventListener("submit", handleConfigSubmit);
       document.getElementById("transactionForm").addEventListener("submit", handleTransactionSubmit);
@@ -1245,6 +1279,8 @@
 
       document.getElementById("txTypeIn").addEventListener("change", handleTypeChange);
       document.getElementById("txTypeOut").addEventListener("change", handleTypeChange);
+
+      window.addEventListener("beforeunload", handleBeforeUnload);
 
       renderAll();
     }
