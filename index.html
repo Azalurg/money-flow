@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cashflow Timeline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1115;
+      --surface: #1f2937;
+      --surface-2: #111827;
+      --border: #334155;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #10b981;
+      --in: #4ade80;
+      --out: #f87171;
+      --danger: #f87171;
+      --topbar-h: 82px;
+      --radius: 12px;
+      --radius-sm: 9px;
+      --shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, sans-serif;
+      line-height: 1.4;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      min-height: var(--topbar-h);
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 1fr;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(15, 17, 21, 0.96);
+      backdrop-filter: blur(5px);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.01em;
+    }
+
+    .brand p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .balance-box {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .balance-label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .balance-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .balance-value.negative {
+      color: var(--danger);
+    }
+
+    .history-warning {
+      display: none;
+      font-size: 0.78rem;
+      color: var(--danger);
+      border: 1px solid rgba(248, 113, 113, 0.5);
+      background: rgba(248, 113, 113, 0.1);
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+
+    .history-warning.active {
+      display: inline-flex;
+      width: fit-content;
+    }
+
+    .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .btn {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      background: #0b1220;
+      padding: 9px 12px;
+      font: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+    }
+
+    .btn:hover {
+      border-color: #4b5563;
+      background: #111827;
+    }
+
+    .btn-primary {
+      border-color: rgba(16, 185, 129, 0.5);
+      color: #d1fae5;
+      background: rgba(16, 185, 129, 0.14);
+    }
+
+    .btn-primary:hover {
+      border-color: rgba(16, 185, 129, 0.7);
+      background: rgba(16, 185, 129, 0.2);
+    }
+
+    .layout {
+      width: min(1260px, 100%);
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .left-column,
+    .right-column {
+      min-width: 0;
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    .form-row {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .form-row:last-of-type {
+      margin-bottom: 12px;
+    }
+
+    .form-row label {
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    input[type="date"],
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      background: #0b1220;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font: inherit;
+      padding: 9px 10px;
+    }
+
+    input:focus-visible,
+    .btn:focus-visible {
+      outline: 2px solid rgba(16, 185, 129, 0.45);
+      outline-offset: 2px;
+    }
+
+    .field-error {
+      min-height: 1.05rem;
+      color: var(--danger);
+      font-size: 0.78rem;
+      margin-top: 2px;
+    }
+
+    .type-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .type-option {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: #0b1220;
+      color: var(--text);
+      text-align: center;
+      padding: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .type-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .type-option.active-in {
+      border-color: rgba(74, 222, 128, 0.65);
+      color: #bbf7d0;
+      background: rgba(74, 222, 128, 0.12);
+    }
+
+    .type-option.active-out {
+      border-color: rgba(248, 113, 113, 0.65);
+      color: #fecaca;
+      background: rgba(248, 113, 113, 0.12);
+    }
+
+    .flash {
+      min-height: 1.1rem;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px;
+      background: var(--surface-2);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.72rem;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .stat-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .stat-value.negative {
+      color: var(--danger);
+    }
+
+    .timeline-shell {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .timeline-title {
+      margin: 0 0 12px;
+      font-size: 1rem;
+    }
+
+    .timeline-empty {
+      border: 1px dashed #475569;
+      border-radius: 10px;
+      color: var(--muted);
+      background: #0b1220;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .timeline-list {
+      position: relative;
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      padding: 2px 0;
+    }
+
+    .timeline-list.active {
+      display: flex;
+    }
+
+    .timeline-list::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 2px;
+      background: #334155;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .timeline-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bubble-slot {
+      min-height: 20px;
+      display: flex;
+    }
+
+    .bubble-slot.left {
+      justify-content: flex-end;
+    }
+
+    .bubble-slot.right {
+      justify-content: flex-start;
+    }
+
+    .tx-bubble {
+      max-width: 100%;
+      width: min(320px, 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #0b1220;
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .tx-bubble.in {
+      border-color: rgba(74, 222, 128, 0.6);
+      background: rgba(74, 222, 128, 0.08);
+    }
+
+    .tx-bubble.out {
+      border-color: rgba(248, 113, 113, 0.6);
+      background: rgba(248, 113, 113, 0.08);
+    }
+
+    .tx-desc {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #f3f4f6;
+      word-wrap: break-word;
+    }
+
+    .tx-amount {
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .tx-bubble.in .tx-amount {
+      color: var(--in);
+    }
+
+    .tx-bubble.out .tx-amount {
+      color: var(--out);
+    }
+
+    .axis-core {
+      position: relative;
+      z-index: 1;
+      min-width: 140px;
+      display: grid;
+      justify-items: center;
+      gap: 4px;
+      text-align: center;
+    }
+
+    .axis-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid #0f1115;
+      background: var(--accent);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
+    }
+
+    .axis-date {
+      font-size: 0.79rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .axis-balance {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #a7f3d0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .axis-balance.negative {
+      color: var(--danger);
+    }
+
+    @media (min-width: 960px) {
+      .topbar {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+      }
+
+      .layout {
+        grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+        align-items: start;
+      }
+
+      .left-column {
+        position: sticky;
+        top: calc(var(--topbar-h) + 12px);
+        max-height: calc(100vh - var(--topbar-h) - 24px);
+        overflow: auto;
+        padding-right: 2px;
+      }
+
+      .right-column {
+        min-height: calc(100vh - var(--topbar-h) - 20px);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .timeline-item {
+        gap: 6px;
+      }
+
+      .axis-core {
+        min-width: 110px;
+      }
+
+      .tx-bubble {
+        width: 100%;
+        padding: 9px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Cashflow Timeline</h1>
+      <p>Zarządzanie przepływami pieniężnymi na osi czasu</p>
+    </div>
+
+    <div class="balance-box">
+      <span class="balance-label">Aktualne saldo konta</span>
+      <strong id="currentBalance" class="balance-value">0,00 PLN</strong>
+      <span id="negativeHistoryWarning" class="history-warning">W historii wystąpiło ujemne saldo</span>
+    </div>
+
+    <div class="top-actions">
+      <button id="importCsvBtn" type="button" class="btn">Import CSV</button>
+      <button id="exportCsvBtn" type="button" class="btn btn-primary">Eksport CSV</button>
+      <input id="csvFileInput" type="file" accept=".csv,text/csv" hidden>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="left-column">
+      <section class="card">
+        <h2>Konfiguracja osi czasu</h2>
+        <form id="configForm" novalidate>
+          <div class="form-row">
+            <label for="startDate">Data startowa</label>
+            <input id="startDate" name="startDate" type="date" required>
+          </div>
+
+          <div class="form-row">
+            <label for="endDate">Data końcowa</label>
+            <input id="endDate" name="endDate" type="date" required>
+          </div>
+
+          <div class="form-row">
+            <label for="initialBalance">Saldo początkowe (PLN)</label>
+            <input id="initialBalance" name="initialBalance" type="number" step="0.01" value="0">
+          </div>
+
+          <div id="configError" class="field-error" aria-live="polite"></div>
+          <button class="btn btn-primary" type="submit">Zastosuj</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Dodawanie transakcji</h2>
+        <form id="transactionForm" novalidate>
+          <div class="form-row">
+            <label for="txDate">Data</label>
+            <input id="txDate" name="txDate" type="date" required>
+            <div id="txDateError" class="field-error" aria-live="polite"></div>
+          </div>
+
+          <div class="form-row">
+            <label for="txAmount">Kwota (PLN)</label>
+            <input id="txAmount" name="txAmount" type="number" step="0.01" min="0.01" required>
+            <div id="txAmountError" class="field-error" aria-live="polite"></div>
+          </div>
+
+          <div class="form-row">
+            <label>Typ operacji</label>
+            <div class="type-row">
+              <label id="typeInLabel" class="type-option" for="txTypeIn">
+                <input id="txTypeIn" type="radio" name="txType" value="in">
+                Wpłata
+              </label>
+              <label id="typeOutLabel" class="type-option" for="txTypeOut">
+                <input id="txTypeOut" type="radio" name="txType" value="out">
+                Wypłata
+              </label>
+            </div>
+            <div id="txTypeError" class="field-error" aria-live="polite"></div>
+          </div>
+
+          <div class="form-row">
+            <label for="txDescription">Opis (opcjonalny)</label>
+            <input id="txDescription" name="txDescription" type="text" maxlength="140" placeholder="Np. Czynsz">
+          </div>
+
+          <div id="txFormError" class="field-error" aria-live="polite"></div>
+          <button id="addTxBtn" class="btn btn-primary" type="submit">Dodaj transakcję</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Statystyki</h2>
+        <div class="stats-grid">
+          <div class="stat">
+            <div class="stat-label">Ilość operacji</div>
+            <div id="statOperations" class="stat-value">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Suma wpłat</div>
+            <div id="statIn" class="stat-value">0,00 PLN</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Suma wypłat</div>
+            <div id="statOut" class="stat-value">0,00 PLN</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Money flow</div>
+            <div id="statFlow" class="stat-value">0,00 PLN</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Punkty na minusie</div>
+            <div id="statNegativePoints" class="stat-value">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Wejścia na minus</div>
+            <div id="statNegativeEntries" class="stat-value">0</div>
+          </div>
+        </div>
+      </section>
+
+      <div id="flashMessage" class="flash" aria-live="polite"></div>
+    </aside>
+
+    <section class="right-column">
+      <section class="timeline-shell">
+        <h2 class="timeline-title">Oś transakcji</h2>
+        <div id="timelineEmpty" class="timeline-empty">Brak transakcji. Dodaj pierwszą operację lub zaimportuj plik CSV.</div>
+        <div id="timelineList" class="timeline-list" aria-live="polite"></div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      timelineConfig: {
+        startDate: "",
+        endDate: "",
+        initialBalance: 0
+      },
+      transactions: [],
+      nextId: 1,
+      ui: {
+        flashMessage: "",
+        configError: "",
+        txErrors: {
+          date: "",
+          amount: "",
+          type: "",
+          form: ""
+        }
+      }
+    };
+
+    const numberFormatter = new Intl.NumberFormat("pl-PL", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+    function formatCurrency(value) {
+      const normalized = Number.isFinite(value) ? value : 0;
+      return `${numberFormatter.format(normalized)} PLN`;
+    }
+
+    function formatDateLabel(isoDate) {
+      if (!isValidIsoDate(isoDate)) {
+        return isoDate;
+      }
+      const [year, month, day] = isoDate.split("-").map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      return date.toLocaleDateString("pl-PL", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "UTC"
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function isValidIsoDate(value) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return false;
+      }
+      const [year, month, day] = value.split("-").map(Number);
+      const date = new Date(Date.UTC(year, month - 1, day));
+      return date.getUTCFullYear() === year
+        && date.getUTCMonth() === month - 1
+        && date.getUTCDate() === day;
+    }
+
+    function compareTransactions(a, b) {
+      if (a.date !== b.date) {
+        return a.date < b.date ? -1 : 1;
+      }
+      if (a.type !== b.type) {
+        return a.type === "in" ? -1 : 1;
+      }
+      return a.id - b.id;
+    }
+
+    function sortTransactionsInState() {
+      state.transactions.sort(compareTransactions);
+    }
+
+    function buildTimelineRows() {
+      let running = Number(state.timelineConfig.initialBalance) || 0;
+      return state.transactions.map((transaction) => {
+        const delta = transaction.type === "in" ? transaction.amount : -transaction.amount;
+        running += delta;
+        return {
+          ...transaction,
+          delta,
+          runningBalance: running
+        };
+      });
+    }
+
+    function computeStats(rows) {
+      let totalIn = 0;
+      let totalOut = 0;
+      let negativePoints = 0;
+      let negativeEntries = 0;
+      let hadNegative = Number(state.timelineConfig.initialBalance) < 0;
+      let previousBalance = Number(state.timelineConfig.initialBalance) || 0;
+
+      rows.forEach((row) => {
+        if (row.type === "in") {
+          totalIn += row.amount;
+        } else {
+          totalOut += row.amount;
+        }
+
+        if (row.runningBalance < 0) {
+          negativePoints += 1;
+          hadNegative = true;
+          if (previousBalance >= 0) {
+            negativeEntries += 1;
+          }
+        }
+        previousBalance = row.runningBalance;
+      });
+
+      return {
+        operations: rows.length,
+        totalIn,
+        totalOut,
+        flow: totalIn - totalOut,
+        negativePoints,
+        negativeEntries,
+        hadNegative
+      };
+    }
+
+    function renderTopBar(rows, stats) {
+      const balanceElement = document.getElementById("currentBalance");
+      const warningElement = document.getElementById("negativeHistoryWarning");
+
+      const currentBalance = rows.length
+        ? rows[rows.length - 1].runningBalance
+        : Number(state.timelineConfig.initialBalance) || 0;
+
+      balanceElement.textContent = formatCurrency(currentBalance);
+      balanceElement.classList.toggle("negative", currentBalance < 0);
+
+      warningElement.classList.toggle("active", stats.hadNegative);
+    }
+
+    function renderStats(stats) {
+      const statFlow = document.getElementById("statFlow");
+
+      document.getElementById("statOperations").textContent = String(stats.operations);
+      document.getElementById("statIn").textContent = formatCurrency(stats.totalIn);
+      document.getElementById("statOut").textContent = formatCurrency(stats.totalOut);
+      statFlow.textContent = formatCurrency(stats.flow);
+      statFlow.classList.toggle("negative", stats.flow < 0);
+      document.getElementById("statNegativePoints").textContent = String(stats.negativePoints);
+      document.getElementById("statNegativeEntries").textContent = String(stats.negativeEntries);
+    }
+
+    function renderTimeline(rows) {
+      const emptyElement = document.getElementById("timelineEmpty");
+      const listElement = document.getElementById("timelineList");
+
+      if (!rows.length) {
+        listElement.innerHTML = "";
+        listElement.classList.remove("active");
+        emptyElement.style.display = "block";
+        return;
+      }
+
+      emptyElement.style.display = "none";
+      listElement.classList.add("active");
+
+      listElement.innerHTML = rows.map((row) => {
+        const description = row.description ? escapeHtml(row.description) : "Brak opisu";
+        const signedAmount = row.type === "in"
+          ? `+${formatCurrency(row.amount)}`
+          : `-${formatCurrency(row.amount)}`;
+        const balanceClass = row.runningBalance < 0 ? "axis-balance negative" : "axis-balance";
+        const bubble = `
+          <div class="tx-bubble ${row.type}">
+            <p class="tx-desc">${description}</p>
+            <p class="tx-amount">${signedAmount}</p>
+          </div>
+        `;
+
+        return `
+          <article class="timeline-item ${row.type}">
+            <div class="bubble-slot left">${row.type === "in" ? bubble : ""}</div>
+            <div class="axis-core">
+              <span class="axis-dot" aria-hidden="true"></span>
+              <time class="axis-date">${formatDateLabel(row.date)}</time>
+              <strong class="${balanceClass}">${formatCurrency(row.runningBalance)}</strong>
+            </div>
+            <div class="bubble-slot right">${row.type === "out" ? bubble : ""}</div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderFlashMessage() {
+      document.getElementById("flashMessage").textContent = state.ui.flashMessage;
+    }
+
+    function renderConfigErrors() {
+      document.getElementById("configError").textContent = state.ui.configError;
+    }
+
+    function renderTransactionErrors() {
+      document.getElementById("txDateError").textContent = state.ui.txErrors.date;
+      document.getElementById("txAmountError").textContent = state.ui.txErrors.amount;
+      document.getElementById("txTypeError").textContent = state.ui.txErrors.type;
+      document.getElementById("txFormError").textContent = state.ui.txErrors.form;
+    }
+
+    function renderTransactionFormState() {
+      const hasRange = Boolean(state.timelineConfig.startDate && state.timelineConfig.endDate);
+      const dateInput = document.getElementById("txDate");
+      const amountInput = document.getElementById("txAmount");
+      const descriptionInput = document.getElementById("txDescription");
+      const addButton = document.getElementById("addTxBtn");
+
+      dateInput.min = state.timelineConfig.startDate || "";
+      dateInput.max = state.timelineConfig.endDate || "";
+
+      dateInput.disabled = !hasRange;
+      amountInput.disabled = !hasRange;
+      descriptionInput.disabled = !hasRange;
+      document.getElementById("txTypeIn").disabled = !hasRange;
+      document.getElementById("txTypeOut").disabled = !hasRange;
+      addButton.disabled = !hasRange;
+
+      if (!hasRange) {
+        state.ui.txErrors.form = "Najpierw skonfiguruj oś czasu.";
+      }
+    }
+
+    function renderTypeSelection() {
+      const inChecked = document.getElementById("txTypeIn").checked;
+      const outChecked = document.getElementById("txTypeOut").checked;
+
+      document.getElementById("typeInLabel").classList.toggle("active-in", inChecked);
+      document.getElementById("typeOutLabel").classList.toggle("active-out", outChecked);
+    }
+
+    function renderAll() {
+      const rows = buildTimelineRows();
+      const stats = computeStats(rows);
+      renderTopBar(rows, stats);
+      renderStats(stats);
+      renderTimeline(rows);
+      renderConfigErrors();
+      renderTransactionErrors();
+      renderTransactionFormState();
+      renderTypeSelection();
+      renderFlashMessage();
+    }
+
+    function resetTxErrors() {
+      state.ui.txErrors = {
+        date: "",
+        amount: "",
+        type: "",
+        form: ""
+      };
+    }
+
+    function validateConfigInput(startDate, endDate) {
+      if (!startDate || !endDate) {
+        return "Uzupełnij datę startową i końcową.";
+      }
+      if (!isValidIsoDate(startDate) || !isValidIsoDate(endDate)) {
+        return "Podaj poprawne daty.";
+      }
+      if (startDate > endDate) {
+        return "Data startowa nie może być późniejsza niż końcowa.";
+      }
+      return "";
+    }
+
+    function applyTimelineConfig(formData) {
+      const startDate = formData.get("startDate");
+      const endDate = formData.get("endDate");
+      const initialBalanceRaw = String(formData.get("initialBalance") || "0").trim();
+      const initialBalance = Number(initialBalanceRaw === "" ? "0" : initialBalanceRaw);
+      const error = validateConfigInput(startDate, endDate);
+
+      state.ui.configError = "";
+      state.ui.flashMessage = "";
+
+      if (error) {
+        state.ui.configError = error;
+        return;
+      }
+      if (!Number.isFinite(initialBalance)) {
+        state.ui.configError = "Saldo początkowe musi być liczbą.";
+        return;
+      }
+
+      state.timelineConfig = {
+        startDate,
+        endDate,
+        initialBalance
+      };
+
+      state.transactions = [];
+      state.nextId = 1;
+
+      resetTxErrors();
+      document.getElementById("transactionForm").reset();
+      state.ui.flashMessage = "Oś czasu została zresetowana.";
+    }
+
+    function validateTransactionInput(input) {
+      const errors = {
+        date: "",
+        amount: "",
+        type: "",
+        form: ""
+      };
+
+      if (!state.timelineConfig.startDate || !state.timelineConfig.endDate) {
+        errors.form = "Najpierw skonfiguruj oś czasu.";
+        return errors;
+      }
+
+      if (!input.date || !isValidIsoDate(input.date)) {
+        errors.date = "Wybierz poprawną datę.";
+      } else if (input.date < state.timelineConfig.startDate || input.date > state.timelineConfig.endDate) {
+        errors.date = "Data transakcji jest poza zakresem osi czasu.";
+      }
+
+      if (!Number.isFinite(input.amount) || input.amount <= 0) {
+        errors.amount = "Kwota musi być większa od 0.";
+      }
+
+      if (!input.type) {
+        errors.type = "Wybierz typ operacji.";
+      }
+
+      return errors;
+    }
+
+    function hasAnyTxError(errors) {
+      return Boolean(errors.date || errors.amount || errors.type || errors.form);
+    }
+
+    function addTransaction(input) {
+      const errors = validateTransactionInput(input);
+      state.ui.txErrors = errors;
+      state.ui.flashMessage = "";
+
+      if (hasAnyTxError(errors)) {
+        return false;
+      }
+
+      state.transactions.push({
+        id: state.nextId,
+        date: input.date,
+        amount: input.amount,
+        type: input.type,
+        description: input.description
+      });
+      state.nextId += 1;
+
+      sortTransactionsInState();
+      resetTxErrors();
+      state.ui.flashMessage = "Transakcja została dodana.";
+      return true;
+    }
+
+    function parseCsvLine(line) {
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+
+        if (char === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === "," && !inQuotes) {
+          result.push(current);
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+
+      if (inQuotes) {
+        return null;
+      }
+
+      result.push(current);
+      return result;
+    }
+
+    function isDecimalDotAmount(rawAmount) {
+      return /^\d+(\.\d+)?$/.test(rawAmount);
+    }
+
+    function parseCsv(text) {
+      const normalized = text
+        .replace(/^\uFEFF/, "")
+        .replace(/\r\n/g, "\n")
+        .replace(/\r/g, "\n");
+      const lines = normalized.split("\n").filter((line) => line.trim() !== "");
+
+      if (!lines.length) {
+        return { imported: [], skipped: 0, error: "Plik CSV jest pusty." };
+      }
+
+      const header = parseCsvLine(lines[0]);
+      const expectedHeader = ["data", "kwota", "typ", "opis"];
+
+      if (!header || header.length !== 4 || header.map((cell) => cell.trim()).join(",") !== expectedHeader.join(",")) {
+        return { imported: [], skipped: 0, error: "Nieprawidłowy nagłówek CSV. Oczekiwano: data,kwota,typ,opis" };
+      }
+
+      const imported = [];
+      let skipped = 0;
+
+      for (let i = 1; i < lines.length; i += 1) {
+        const parsed = parseCsvLine(lines[i]);
+        if (!parsed || parsed.length !== 4) {
+          skipped += 1;
+          continue;
+        }
+
+        const [rawDate, rawAmount, rawType, rawDescription] = parsed;
+        const date = rawDate.trim();
+        const amountText = rawAmount.trim();
+        const type = rawType.trim();
+        const description = rawDescription.trim();
+
+        if (!isValidIsoDate(date) || !isDecimalDotAmount(amountText) || !["in", "out"].includes(type)) {
+          skipped += 1;
+          continue;
+        }
+
+        const amount = Number(amountText);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          skipped += 1;
+          continue;
+        }
+
+        imported.push({
+          id: imported.length + 1,
+          date,
+          amount,
+          type,
+          description
+        });
+      }
+
+      return { imported, skipped, error: "" };
+    }
+
+    function applyImportedTransactions(parsedCsv) {
+      if (!parsedCsv.imported.length) {
+        alert("Import nieudany: brak poprawnych wierszy CSV.");
+        return;
+      }
+
+      const sortedByDate = [...parsedCsv.imported].sort((a, b) => (a.date < b.date ? -1 : 1));
+      const minDate = sortedByDate[0].date;
+      const maxDate = sortedByDate[sortedByDate.length - 1].date;
+
+      state.timelineConfig = {
+        startDate: minDate,
+        endDate: maxDate,
+        initialBalance: 0
+      };
+
+      state.transactions = parsedCsv.imported.map((transaction, index) => ({
+        ...transaction,
+        id: index + 1
+      }));
+
+      state.nextId = state.transactions.length + 1;
+      sortTransactionsInState();
+
+      state.ui.configError = "";
+      resetTxErrors();
+      state.ui.flashMessage = `Zaimportowano ${parsedCsv.imported.length} wierszy, pominięto ${parsedCsv.skipped}.`;
+
+      document.getElementById("startDate").value = minDate;
+      document.getElementById("endDate").value = maxDate;
+      document.getElementById("initialBalance").value = "0";
+    }
+
+    function escapeCsvField(value) {
+      const stringValue = String(value);
+      if (/[",\n]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+      }
+      return stringValue;
+    }
+
+    function exportCsv() {
+      const rows = ["data,kwota,typ,opis"];
+
+      state.transactions.forEach((transaction) => {
+        rows.push([
+          transaction.date,
+          transaction.amount.toFixed(2),
+          transaction.type,
+          escapeCsvField(transaction.description || "")
+        ].join(","));
+      });
+
+      const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8" });
+      const link = document.createElement("a");
+      const objectUrl = URL.createObjectURL(blob);
+
+      link.href = objectUrl;
+      link.download = `cashflow_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+
+      state.ui.flashMessage = "Eksport CSV zakończony.";
+      renderFlashMessage();
+    }
+
+    function handleConfigSubmit(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+      applyTimelineConfig(formData);
+      renderAll();
+    }
+
+    function handleTransactionSubmit(event) {
+      event.preventDefault();
+      const formData = new FormData(event.currentTarget);
+
+      const added = addTransaction({
+        date: String(formData.get("txDate") || ""),
+        amount: Number(formData.get("txAmount") || NaN),
+        type: String(formData.get("txType") || ""),
+        description: String(formData.get("txDescription") || "").trim()
+      });
+
+      if (added) {
+        event.currentTarget.reset();
+      }
+
+      renderAll();
+    }
+
+    async function handleCsvFileChange(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) {
+        return;
+      }
+
+      const text = await file.text();
+      const parsedCsv = parseCsv(text);
+
+      if (parsedCsv.error) {
+        alert(parsedCsv.error);
+      } else {
+        applyImportedTransactions(parsedCsv);
+      }
+
+      event.target.value = "";
+      renderAll();
+    }
+
+    function handleTypeChange() {
+      renderTypeSelection();
+      if (state.ui.txErrors.type) {
+        state.ui.txErrors.type = "";
+        renderTransactionErrors();
+      }
+    }
+
+    function init() {
+      document.getElementById("configForm").addEventListener("submit", handleConfigSubmit);
+      document.getElementById("transactionForm").addEventListener("submit", handleTransactionSubmit);
+
+      document.getElementById("importCsvBtn").addEventListener("click", () => {
+        document.getElementById("csvFileInput").click();
+      });
+      document.getElementById("exportCsvBtn").addEventListener("click", exportCsv);
+      document.getElementById("csvFileInput").addEventListener("change", handleCsvFileChange);
+
+      document.getElementById("txTypeIn").addEventListener("change", handleTypeChange);
+      document.getElementById("txTypeOut").addEventListener("change", handleTypeChange);
+
+      renderAll();
+    }
+
+    init();
+  </script>
+</body>
+</html>
