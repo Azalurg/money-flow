@@ -1385,14 +1385,19 @@
         initialBalance
       };
 
+      const outOfRangeCount = state.transactions.filter((transaction) => {
+        return transaction.date < startDate || transaction.date > endDate;
+      }).length;
+
       clearUndoDelete();
-      state.transactions = [];
-      state.nextId = 1;
 
       resetTxErrors();
       resetRecurrenceError();
-      document.getElementById("transactionForm").reset();
-      state.ui.flashMessage = "Oś czasu została zresetowana.";
+      if (outOfRangeCount > 0) {
+        state.ui.flashMessage = `Zakres osi zaktualizowany. ${outOfRangeCount} istniejących transakcji jest poza zakresem i nie zostanie usuniętych.`;
+      } else {
+        state.ui.flashMessage = "Zakres osi zaktualizowany.";
+      }
     }
 
     function validateTransactionInput(input) {
