@@ -425,6 +425,25 @@
       color: var(--danger);
     }
 
+    .axis-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .axis-boundary-date {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .timeline-item.boundary .axis-dot {
+      background: #64748b;
+      box-shadow: none;
+    }
+
     @media (min-width: 960px) {
       .topbar {
         grid-template-columns: minmax(0, 1fr) auto auto;
@@ -753,18 +772,50 @@
     function renderTimeline(rows) {
       const emptyElement = document.getElementById("timelineEmpty");
       const listElement = document.getElementById("timelineList");
+      const hasRange = Boolean(state.timelineConfig.startDate && state.timelineConfig.endDate);
 
-      if (!rows.length) {
+      if (!hasRange) {
         listElement.innerHTML = "";
         listElement.classList.remove("active");
+        emptyElement.textContent = "Ustaw datę startową i końcową osi czasu, aby rozpocząć.";
         emptyElement.style.display = "block";
         return;
       }
 
-      emptyElement.style.display = "none";
+      const startBoundary = `
+        <article class="timeline-item boundary">
+          <div class="bubble-slot left"></div>
+          <div class="axis-core">
+            <span class="axis-dot" aria-hidden="true"></span>
+            <span class="axis-label">Początek osi</span>
+            <strong class="axis-boundary-date">${formatDateLabel(state.timelineConfig.startDate)}</strong>
+          </div>
+          <div class="bubble-slot right"></div>
+        </article>
+      `;
+
+      const endBoundary = `
+        <article class="timeline-item boundary">
+          <div class="bubble-slot left"></div>
+          <div class="axis-core">
+            <span class="axis-dot" aria-hidden="true"></span>
+            <span class="axis-label">Koniec osi</span>
+            <strong class="axis-boundary-date">${formatDateLabel(state.timelineConfig.endDate)}</strong>
+          </div>
+          <div class="bubble-slot right"></div>
+        </article>
+      `;
+
+      if (!rows.length) {
+        emptyElement.textContent = "Oś skonfigurowana. Dodaj transakcję lub zaimportuj CSV.";
+        emptyElement.style.display = "block";
+      } else {
+        emptyElement.style.display = "none";
+      }
+
       listElement.classList.add("active");
 
-      listElement.innerHTML = rows.map((row) => {
+      const transactionItems = rows.map((row) => {
         const description = row.description ? escapeHtml(row.description) : "Brak opisu";
         const signedAmount = row.type === "in"
           ? `+${formatCurrency(row.amount)}`
@@ -789,6 +840,8 @@
           </article>
         `;
       }).join("");
+
+      listElement.innerHTML = `${startBoundary}${transactionItems}${endBoundary}`;
     }
 
     function renderFlashMessage() {
