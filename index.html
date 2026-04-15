@@ -184,7 +184,8 @@
 
     input[type="date"],
     input[type="number"],
-    input[type="text"] {
+    input[type="text"],
+    select {
       width: 100%;
       background: #0b1220;
       border: 1px solid var(--border);
@@ -241,6 +242,21 @@
       border-color: rgba(248, 113, 113, 0.65);
       color: #fecaca;
       background: rgba(248, 113, 113, 0.12);
+    }
+
+    .type-option.active-mode {
+      border-color: rgba(16, 185, 129, 0.65);
+      color: #d1fae5;
+      background: rgba(16, 185, 129, 0.14);
+    }
+
+    .recurrence-fields {
+      display: grid;
+      gap: 8px;
+    }
+
+    .recurrence-fields[hidden] {
+      display: none;
     }
 
     .flash {
@@ -687,6 +703,20 @@
         <h2>Dodawanie transakcji</h2>
         <form id="transactionForm" novalidate>
           <div class="form-row">
+            <label>Tryb dodawania</label>
+            <div class="type-row">
+              <label id="txModeSingleLabel" class="type-option" for="txModeSingle">
+                <input id="txModeSingle" type="radio" name="txMode" value="single" checked>
+                Pojedyncza
+              </label>
+              <label id="txModeRecurringLabel" class="type-option" for="txModeRecurring">
+                <input id="txModeRecurring" type="radio" name="txMode" value="recurring">
+                Cykliczna
+              </label>
+            </div>
+          </div>
+
+          <div class="form-row">
             <label for="txDate">Data</label>
             <input id="txDate" name="txDate" type="date" required>
             <div id="txDateError" class="field-error" aria-live="polite"></div>
@@ -711,6 +741,28 @@
               </label>
             </div>
             <div id="txTypeError" class="field-error" aria-live="polite"></div>
+          </div>
+
+          <div id="recurrenceFields" class="recurrence-fields" hidden>
+            <div class="form-row">
+              <label for="recurrenceType">Interwał</label>
+              <select id="recurrenceType" name="recurrenceType">
+                <option value="weekly">Co tydzień</option>
+                <option value="monthly">Co miesiąc</option>
+                <option value="every-n-days">Co N dni</option>
+              </select>
+            </div>
+
+            <div id="recurrenceEveryRow" class="form-row" hidden>
+              <label for="recurrenceEvery">N (dni)</label>
+              <input id="recurrenceEvery" name="recurrenceEvery" type="number" min="1" step="1" value="10">
+            </div>
+
+            <div class="form-row">
+              <label for="recurrenceCount">Liczba powtórzeń (X)</label>
+              <input id="recurrenceCount" name="recurrenceCount" type="number" min="1" step="1" value="4">
+              <div id="recurrenceError" class="field-error" aria-live="polite"></div>
+            </div>
           </div>
 
           <div class="form-row">
@@ -836,6 +888,7 @@
           type: "",
           form: ""
         },
+        recurrenceError: "",
         editErrors: {
           date: "",
           amount: "",
@@ -888,6 +941,36 @@
       return date.getUTCFullYear() === year
         && date.getUTCMonth() === month - 1
         && date.getUTCDate() === day;
+    }
+
+    function isoToUtcDate(isoDate) {
+      const [year, month, day] = isoDate.split("-").map(Number);
+      return new Date(Date.UTC(year, month - 1, day));
+    }
+
+    function utcDateToIso(date) {
+      return date.toISOString().slice(0, 10);
+    }
+
+    function addDaysUtc(isoDate, days) {
+      const date = isoToUtcDate(isoDate);
+      date.setUTCDate(date.getUTCDate() + days);
+      return utcDateToIso(date);
+    }
+
+    function addMonthsSameDayWithFallback(isoDate, monthsToAdd) {
+      const start = isoToUtcDate(isoDate);
+      const startYear = start.getUTCFullYear();
+      const startMonth = start.getUTCMonth();
+      const startDay = start.getUTCDate();
+
+      const monthOffset = startMonth + monthsToAdd;
+      const targetYear = startYear + Math.floor(monthOffset / 12);
+      const targetMonth = ((monthOffset % 12) + 12) % 12;
+      const daysInTargetMonth = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+      const targetDay = Math.min(startDay, daysInTargetMonth);
+
+      return utcDateToIso(new Date(Date.UTC(targetYear, targetMonth, targetDay)));
     }
 
     function compareTransactions(a, b) {
@@ -1094,6 +1177,16 @@
       document.getElementById("txFormError").textContent = state.ui.txErrors.form;
     }
 
+    function renderRecurrenceControls() {
+      const recurringMode = document.getElementById("txModeRecurring").checked;
+      const recurrenceFields = document.getElementById("recurrenceFields");
+      const recurrenceType = document.getElementById("recurrenceType").value;
+
+      recurrenceFields.hidden = !recurringMode;
+      document.getElementById("recurrenceEveryRow").hidden = !(recurringMode && recurrenceType === "every-n-days");
+      document.getElementById("recurrenceError").textContent = recurringMode ? state.ui.recurrenceError : "";
+    }
+
     function renderEditErrors() {
       document.getElementById("editDateError").textContent = state.ui.editErrors.date;
       document.getElementById("editAmountError").textContent = state.ui.editErrors.amount;
@@ -1116,6 +1209,11 @@
       descriptionInput.disabled = !hasRange;
       document.getElementById("txTypeIn").disabled = !hasRange;
       document.getElementById("txTypeOut").disabled = !hasRange;
+      document.getElementById("txModeSingle").disabled = !hasRange;
+      document.getElementById("txModeRecurring").disabled = !hasRange;
+      document.getElementById("recurrenceType").disabled = !hasRange;
+      document.getElementById("recurrenceEvery").disabled = !hasRange;
+      document.getElementById("recurrenceCount").disabled = !hasRange;
       addButton.disabled = !hasRange;
 
       if (!hasRange) {
@@ -1126,9 +1224,13 @@
     function renderTypeSelection() {
       const inChecked = document.getElementById("txTypeIn").checked;
       const outChecked = document.getElementById("txTypeOut").checked;
+      const modeSingleChecked = document.getElementById("txModeSingle").checked;
+      const modeRecurringChecked = document.getElementById("txModeRecurring").checked;
 
       document.getElementById("typeInLabel").classList.toggle("active-in", inChecked);
       document.getElementById("typeOutLabel").classList.toggle("active-out", outChecked);
+      document.getElementById("txModeSingleLabel").classList.toggle("active-mode", modeSingleChecked);
+      document.getElementById("txModeRecurringLabel").classList.toggle("active-mode", modeRecurringChecked);
 
       const editInChecked = document.getElementById("editTypeIn").checked;
       const editOutChecked = document.getElementById("editTypeOut").checked;
@@ -1145,6 +1247,7 @@
       renderTimeline(rows);
       renderConfigErrors();
       renderTransactionErrors();
+      renderRecurrenceControls();
       renderEditErrors();
       renderTransactionFormState();
       renderTypeSelection();
@@ -1158,6 +1261,10 @@
         type: "",
         form: ""
       };
+    }
+
+    function resetRecurrenceError() {
+      state.ui.recurrenceError = "";
     }
 
     function resetEditErrors() {
@@ -1283,6 +1390,7 @@
       state.nextId = 1;
 
       resetTxErrors();
+      resetRecurrenceError();
       document.getElementById("transactionForm").reset();
       state.ui.flashMessage = "Oś czasu została zresetowana.";
     }
@@ -1321,9 +1429,37 @@
       return Boolean(errors.date || errors.amount || errors.type || errors.form);
     }
 
+    function validateRecurrenceInput(input) {
+      if (!Number.isInteger(input.recurrenceCount) || input.recurrenceCount <= 0) {
+        return "Liczba powtórzeń musi być większa od 0.";
+      }
+      if (!["weekly", "monthly", "every-n-days"].includes(input.recurrenceType)) {
+        return "Wybierz poprawny interwał.";
+      }
+      if (input.recurrenceType === "every-n-days" && (!Number.isInteger(input.recurrenceEvery) || input.recurrenceEvery <= 0)) {
+        return "Dla interwału co N dni podaj N większe od 0.";
+      }
+      return "";
+    }
+
+    function generateRecurringDates(startDate, recurrenceType, recurrenceEvery, recurrenceCount) {
+      const dates = [];
+      for (let i = 0; i < recurrenceCount; i += 1) {
+        if (recurrenceType === "weekly") {
+          dates.push(addDaysUtc(startDate, i * 7));
+        } else if (recurrenceType === "monthly") {
+          dates.push(addMonthsSameDayWithFallback(startDate, i));
+        } else {
+          dates.push(addDaysUtc(startDate, i * recurrenceEvery));
+        }
+      }
+      return dates;
+    }
+
     function addTransaction(input) {
       const errors = validateTransactionInput(input);
       state.ui.txErrors = errors;
+      resetRecurrenceError();
       state.ui.flashMessage = "";
 
       if (hasAnyTxError(errors)) {
@@ -1343,6 +1479,68 @@
       sortTransactionsInState();
       resetTxErrors();
       state.ui.flashMessage = "Transakcja została dodana.";
+      return true;
+    }
+
+    function addRecurringTransactions(input) {
+      const baseErrors = validateTransactionInput(input);
+      state.ui.txErrors = baseErrors;
+      state.ui.flashMessage = "";
+
+      if (hasAnyTxError(baseErrors)) {
+        return false;
+      }
+
+      const recurrenceError = validateRecurrenceInput(input);
+      state.ui.recurrenceError = recurrenceError;
+      if (recurrenceError) {
+        return false;
+      }
+
+      const allDates = generateRecurringDates(
+        input.date,
+        input.recurrenceType,
+        input.recurrenceEvery,
+        input.recurrenceCount
+      );
+
+      const baseTitle = input.description || "Transakcja";
+      const newTransactions = [];
+      let skipped = 0;
+
+      allDates.forEach((occurrenceDate, index) => {
+        if (occurrenceDate < state.timelineConfig.startDate || occurrenceDate > state.timelineConfig.endDate) {
+          skipped += 1;
+          return;
+        }
+
+        newTransactions.push({
+          id: state.nextId + newTransactions.length,
+          date: occurrenceDate,
+          amount: input.amount,
+          type: input.type,
+          description: `${baseTitle} ${index + 1}/${input.recurrenceCount}`
+        });
+      });
+
+      if (!newTransactions.length) {
+        state.ui.flashMessage = "Wszystkie wystąpienia serii są poza zakresem osi czasu.";
+        return false;
+      }
+
+      clearUndoDelete();
+      state.transactions.push(...newTransactions);
+      state.nextId += newTransactions.length;
+      sortTransactionsInState();
+      resetTxErrors();
+      resetRecurrenceError();
+
+      if (skipped > 0) {
+        state.ui.flashMessage = `Dodano ${newTransactions.length}/${input.recurrenceCount}, pominięto ${skipped}.`;
+      } else {
+        state.ui.flashMessage = `Dodano serię ${newTransactions.length}/${input.recurrenceCount}.`;
+      }
+
       return true;
     }
 
@@ -1527,6 +1725,7 @@
 
       state.ui.configError = "";
       resetTxErrors();
+      resetRecurrenceError();
       closeEditModal(false);
       state.ui.flashMessage = `Zaimportowano ${parsedCsv.imported.length} wierszy, pominięto ${parsedCsv.skipped}.`;
 
@@ -1581,13 +1780,30 @@
     function handleTransactionSubmit(event) {
       event.preventDefault();
       const formData = new FormData(event.currentTarget);
+      const mode = String(formData.get("txMode") || "single");
+      const recurrenceType = String(formData.get("recurrenceType") || "weekly");
+      const recurrenceEveryRaw = String(formData.get("recurrenceEvery") || "").trim();
+      const recurrenceCountRaw = String(formData.get("recurrenceCount") || "").trim();
 
-      const added = addTransaction({
+      const recurrenceEvery = Number.parseInt(recurrenceEveryRaw, 10);
+      const recurrenceCount = Number.parseInt(recurrenceCountRaw, 10);
+
+      const input = {
         date: String(formData.get("txDate") || ""),
         amount: Number(formData.get("txAmount") || NaN),
         type: String(formData.get("txType") || ""),
-        description: String(formData.get("txDescription") || "").trim()
-      });
+        description: String(formData.get("txDescription") || "").trim(),
+        recurrenceType,
+        recurrenceEvery,
+        recurrenceCount
+      };
+
+      let added = false;
+      if (mode === "recurring") {
+        added = addRecurringTransactions(input);
+      } else {
+        added = addTransaction(input);
+      }
 
       if (added) {
         event.currentTarget.reset();
@@ -1621,6 +1837,13 @@
         state.ui.txErrors.type = "";
         renderTransactionErrors();
       }
+    }
+
+    function handleRecurrenceChange() {
+      if (state.ui.recurrenceError) {
+        state.ui.recurrenceError = "";
+      }
+      renderAll();
     }
 
     function handleEditTypeChange() {
@@ -1711,6 +1934,10 @@
       const txAmountDraftRaw = document.getElementById("txAmount").value.trim();
       const txDescriptionDraft = document.getElementById("txDescription").value.trim();
       const txTypeDraftSelected = Boolean(document.querySelector('input[name="txType"]:checked'));
+      const txRecurringMode = document.getElementById("txModeRecurring").checked;
+      const recurrenceTypeDraft = document.getElementById("recurrenceType").value;
+      const recurrenceEveryDraft = document.getElementById("recurrenceEvery").value.trim();
+      const recurrenceCountDraft = document.getElementById("recurrenceCount").value.trim();
       const editDateDraft = document.getElementById("editDate").value;
       const editAmountDraftRaw = document.getElementById("editAmount").value.trim();
       const editDescriptionDraft = document.getElementById("editDescription").value.trim();
@@ -1718,11 +1945,14 @@
 
       const hasConfigDraft = Boolean(startDateDraft || endDateDraft || initialBalanceDraft !== 0);
       const hasTxDraft = Boolean(txDateDraft || txAmountDraftRaw || txDescriptionDraft || txTypeDraftSelected);
+      const hasRecurringDraft = Boolean(
+        txRecurringMode || recurrenceTypeDraft !== "weekly" || recurrenceEveryDraft !== "10" || recurrenceCountDraft !== "4"
+      );
       const hasEditDraft = Boolean(
         isEditModalOpen() || editDateDraft || editAmountDraftRaw || editDescriptionDraft || editTypeDraftSelected
       );
 
-      return hasConfigDraft || hasTxDraft || hasEditDraft;
+      return hasConfigDraft || hasTxDraft || hasRecurringDraft || hasEditDraft;
     }
 
     function hasEnteredData() {
@@ -1754,6 +1984,11 @@
 
       document.getElementById("txTypeIn").addEventListener("change", handleTypeChange);
       document.getElementById("txTypeOut").addEventListener("change", handleTypeChange);
+      document.getElementById("txModeSingle").addEventListener("change", handleRecurrenceChange);
+      document.getElementById("txModeRecurring").addEventListener("change", handleRecurrenceChange);
+      document.getElementById("recurrenceType").addEventListener("change", handleRecurrenceChange);
+      document.getElementById("recurrenceEvery").addEventListener("input", handleRecurrenceChange);
+      document.getElementById("recurrenceCount").addEventListener("input", handleRecurrenceChange);
 
       document.getElementById("editForm").addEventListener("submit", handleEditFormSubmit);
       document.getElementById("editCancelBtn").addEventListener("click", () => closeEditModal());
