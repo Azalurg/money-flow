@@ -773,6 +773,10 @@
       const emptyElement = document.getElementById("timelineEmpty");
       const listElement = document.getElementById("timelineList");
       const hasRange = Boolean(state.timelineConfig.startDate && state.timelineConfig.endDate);
+      const startBalance = Number(state.timelineConfig.initialBalance) || 0;
+      const endBalance = rows.length ? rows[rows.length - 1].runningBalance : startBalance;
+      const startBalanceClass = startBalance < 0 ? "axis-balance negative" : "axis-balance";
+      const endBalanceClass = endBalance < 0 ? "axis-balance negative" : "axis-balance";
 
       if (!hasRange) {
         listElement.innerHTML = "";
@@ -789,6 +793,7 @@
             <span class="axis-dot" aria-hidden="true"></span>
             <span class="axis-label">Początek osi</span>
             <strong class="axis-boundary-date">${formatDateLabel(state.timelineConfig.startDate)}</strong>
+            <strong class="${startBalanceClass}">${formatCurrency(startBalance)}</strong>
           </div>
           <div class="bubble-slot right"></div>
         </article>
@@ -801,6 +806,7 @@
             <span class="axis-dot" aria-hidden="true"></span>
             <span class="axis-label">Koniec osi</span>
             <strong class="axis-boundary-date">${formatDateLabel(state.timelineConfig.endDate)}</strong>
+            <strong class="${endBalanceClass}">${formatCurrency(endBalance)}</strong>
           </div>
           <div class="bubble-slot right"></div>
         </article>
