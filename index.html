@@ -247,6 +247,33 @@
       min-height: 1.1rem;
       color: var(--muted);
       font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .undo-btn {
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      background: rgba(16, 185, 129, 0.13);
+      color: #d1fae5;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 0.76rem;
+      line-height: 1;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+
+    .undo-btn:hover,
+    .undo-btn:focus-visible {
+      border-color: rgba(16, 185, 129, 0.75);
+      background: rgba(16, 185, 129, 0.2);
+      outline: none;
+    }
+
+    .undo-btn[hidden] {
+      display: none;
     }
 
     .stats-grid {
@@ -354,7 +381,7 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       background: #0b1220;
-      padding: 10px 40px 10px 10px;
+      padding: 10px 70px 10px 10px;
       display: grid;
       grid-template-rows: 1fr auto;
       gap: 8px;
@@ -400,10 +427,10 @@
       color: var(--out);
     }
 
-    .tx-edit-btn {
+    .tx-edit-btn,
+    .tx-delete-btn {
       position: absolute;
       top: 8px;
-      right: 8px;
       width: 24px;
       height: 24px;
       border: 1px solid #4b5563;
@@ -421,8 +448,25 @@
       transition: opacity 120ms ease, transform 120ms ease, border-color 120ms ease;
     }
 
+    .tx-edit-btn {
+      right: 36px;
+    }
+
+    .tx-delete-btn {
+      right: 8px;
+      border-color: rgba(248, 113, 113, 0.55);
+      color: #fecaca;
+    }
+
     .tx-bubble:hover .tx-edit-btn,
+    .tx-bubble:hover .tx-delete-btn,
     .tx-bubble:focus-within .tx-edit-btn {
+      opacity: 1;
+      pointer-events: auto;
+      transform: scale(1);
+    }
+
+    .tx-bubble:focus-within .tx-delete-btn {
       opacity: 1;
       pointer-events: auto;
       transform: scale(1);
@@ -432,6 +476,13 @@
     .tx-edit-btn:focus-visible {
       border-color: rgba(16, 185, 129, 0.75);
       color: #ecfeff;
+      outline: none;
+    }
+
+    .tx-delete-btn:hover,
+    .tx-delete-btn:focus-visible {
+      border-color: rgba(248, 113, 113, 0.85);
+      color: #fee2e2;
       outline: none;
     }
 
@@ -562,10 +613,11 @@
       .tx-bubble {
         width: 100%;
         padding: 9px;
-        padding-right: 40px;
+        padding-right: 70px;
       }
 
-      .tx-edit-btn {
+      .tx-edit-btn,
+      .tx-delete-btn {
         opacity: 1;
         pointer-events: auto;
         transform: none;
@@ -577,7 +629,8 @@
     }
 
     @media (hover: none), (pointer: coarse) {
-      .tx-edit-btn {
+      .tx-edit-btn,
+      .tx-delete-btn {
         opacity: 1;
         pointer-events: auto;
         transform: none;
@@ -700,7 +753,10 @@
         </div>
       </section>
 
-      <div id="flashMessage" class="flash" aria-live="polite"></div>
+      <div class="flash" aria-live="polite">
+        <span id="flashMessage"></span>
+        <button id="undoDeleteBtn" type="button" class="undo-btn" hidden>Cofnij</button>
+      </div>
     </aside>
 
     <section class="right-column">
@@ -772,6 +828,8 @@
         configError: "",
         editingTransactionId: null,
         lastEditTrigger: null,
+        undoDelete: null,
+        undoTimeoutId: null,
         txErrors: {
           date: "",
           amount: "",
@@ -791,6 +849,7 @@
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
+    const DELETE_FLASH_MESSAGE = "Transfer usunięty.";
 
     function formatCurrency(value) {
       const normalized = Number.isFinite(value) ? value : 0;
@@ -988,6 +1047,13 @@
               aria-label="Edytuj transfer"
               title="Edytuj transfer"
             >✎</button>
+            <button
+              type="button"
+              class="tx-delete-btn"
+              data-delete-id="${row.id}"
+              aria-label="Usuń transfer"
+              title="Usuń transfer"
+            >&#128465;</button>
             <p class="tx-desc">${description}</p>
             <p class="tx-amount">${signedAmount}</p>
           </div>
@@ -1011,6 +1077,10 @@
 
     function renderFlashMessage() {
       document.getElementById("flashMessage").textContent = state.ui.flashMessage;
+      const undoButton = document.getElementById("undoDeleteBtn");
+      const showUndo = Boolean(state.ui.undoDelete);
+      undoButton.hidden = !showUndo;
+      undoButton.disabled = !showUndo;
     }
 
     function renderConfigErrors() {
@@ -1097,6 +1167,14 @@
         type: "",
         form: ""
       };
+    }
+
+    function clearUndoDelete() {
+      if (state.ui.undoTimeoutId !== null) {
+        window.clearTimeout(state.ui.undoTimeoutId);
+      }
+      state.ui.undoTimeoutId = null;
+      state.ui.undoDelete = null;
     }
 
     function isEditModalOpen() {
@@ -1200,6 +1278,7 @@
         initialBalance
       };
 
+      clearUndoDelete();
       state.transactions = [];
       state.nextId = 1;
 
@@ -1251,6 +1330,7 @@
         return false;
       }
 
+      clearUndoDelete();
       state.transactions.push({
         id: state.nextId,
         date: input.date,
@@ -1279,10 +1359,53 @@
       transaction.type = input.type;
       transaction.description = input.description;
 
+      clearUndoDelete();
       sortTransactionsInState();
       closeEditModal();
       state.ui.flashMessage = "Transakcja została zaktualizowana.";
       return true;
+    }
+
+    function deleteTransaction(transactionId) {
+      const index = state.transactions.findIndex((item) => item.id === transactionId);
+      if (index === -1) {
+        state.ui.flashMessage = "Nie znaleziono transakcji do usunięcia.";
+        return false;
+      }
+
+      const [deletedTransaction] = state.transactions.splice(index, 1);
+
+      if (state.ui.editingTransactionId === transactionId) {
+        closeEditModal(false);
+      }
+
+      clearUndoDelete();
+      state.ui.undoDelete = { transaction: deletedTransaction };
+      state.ui.flashMessage = DELETE_FLASH_MESSAGE;
+
+      state.ui.undoTimeoutId = window.setTimeout(() => {
+        state.ui.undoDelete = null;
+        state.ui.undoTimeoutId = null;
+        if (state.ui.flashMessage === DELETE_FLASH_MESSAGE) {
+          state.ui.flashMessage = "";
+        }
+        renderFlashMessage();
+      }, 5000);
+
+      return true;
+    }
+
+    function handleUndoDelete() {
+      if (!state.ui.undoDelete) {
+        return;
+      }
+
+      const restoredTransaction = state.ui.undoDelete.transaction;
+      clearUndoDelete();
+      state.transactions.push(restoredTransaction);
+      sortTransactionsInState();
+      state.ui.flashMessage = "Usunięcie cofnięte.";
+      renderAll();
     }
 
     function parseCsvLine(line) {
@@ -1393,6 +1516,7 @@
         initialBalance: 0
       };
 
+      clearUndoDelete();
       state.transactions = parsedCsv.imported.map((transaction, index) => ({
         ...transaction,
         id: index + 1
@@ -1537,6 +1661,20 @@
     }
 
     function handleTimelineClick(event) {
+      const deleteButton = event.target.closest("[data-delete-id]");
+      if (deleteButton) {
+        const deleteId = Number(deleteButton.getAttribute("data-delete-id"));
+        if (!Number.isInteger(deleteId)) {
+          return;
+        }
+
+        const deleted = deleteTransaction(deleteId);
+        if (deleted) {
+          renderAll();
+        }
+        return;
+      }
+
       const editButton = event.target.closest("[data-edit-id]");
       if (!editButton) {
         return;
@@ -1623,6 +1761,7 @@
       document.getElementById("editTypeOut").addEventListener("change", handleEditTypeChange);
       document.getElementById("timelineList").addEventListener("click", handleTimelineClick);
       document.getElementById("editModal").addEventListener("click", handleModalBackdropClick);
+      document.getElementById("undoDeleteBtn").addEventListener("click", handleUndoDelete);
 
       document.addEventListener("keydown", handleDocumentKeydown);
 
