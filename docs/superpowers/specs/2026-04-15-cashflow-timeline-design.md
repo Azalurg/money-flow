@@ -11,6 +11,7 @@ In scope:
 - Timeline configuration (start date, end date, initial balance)
 - Transaction creation with validation
 - Transaction editing (single transfer)
+- Recurring transaction generation
 - Chronological timeline rendering with running balance
 - CSV import and export
 - Live balance and statistics panel
@@ -44,6 +45,14 @@ Out of scope:
 - Editing allows changing all fields: date, amount, type, description.
 - Edit save is blocked when edited date is outside timeline range.
 - Transaction bubble size remains visually stable during hover and edit affordance display.
+- Recurring transactions are generated in batch immediately (no persistent recurrence rule model).
+- Recurrence supports:
+  - every week
+  - every N days
+  - every month (same day-of-month with end-of-month fallback)
+- Recurrence series length is defined by explicit repeat count (`X`).
+- Series descriptions follow format `<Tytuł> i/X`.
+- Occurrences outside timeline range are skipped and reported (`added/skipped`).
 
 ## 3) UX and Visual Design
 
@@ -89,6 +98,16 @@ Out of scope:
 - Actions: cancel and save.
 - Validation errors shown inline in modal.
 - Closing without save keeps original transaction data.
+
+### Recurrence input mode
+- Transaction form has two modes:
+  - single transaction
+  - recurring transaction
+- In recurring mode, additional fields appear:
+  - recurrence type (`weekly`, `monthly-same-day`, `every-n-days`)
+  - N value (for `every-n-days`)
+  - repeat count `X`
+- Existing date/amount/type/description fields remain base inputs.
 
 ### Empty state
 - Friendly message with guidance to add a transaction or import CSV.
@@ -144,7 +163,30 @@ Validation behavior:
   - move bubble side if type changes (`in` left, `out` right)
   - keep bubble size constraints stable (no UI jump)
 
-### 4.4 Sorting and running balance
+### 4.4 Add recurring transactions (batch generation)
+- Trigger:
+  - user selects recurring mode in add transaction form and submits.
+- Inputs:
+  - base fields: start date, amount, type, base description
+  - recurrence fields: interval type, repeat count `X`, optional interval value `N`
+- Generation behavior:
+  - generate up to `X` occurrences from start date
+  - for each occurrence, create standard transaction object
+  - description format: `<baseTitle> i/X` (e.g., `Czynsz 3/12`)
+- Interval rules:
+  - weekly: +7 days each step
+  - every-n-days: +N days each step (N > 0)
+  - monthly-same-day:
+    - keep same day-of-month where possible
+    - if month is shorter, use last day of target month
+- Range handling:
+  - occurrences outside timeline range are skipped
+  - in-range occurrences are added
+  - user receives summary message (e.g., `Dodano 8/12, pominięto 4`).
+- Failure behavior:
+  - if no occurrences are in range, add nothing and show warning/error message.
+
+### 4.5 Sorting and running balance
 - Data model:
   - `transactions: Array<{ id, date, amount, type, description }>`
 - Sorting order:
@@ -157,13 +199,13 @@ Validation behavior:
   - each `out` subtracts amount
   - each rendered point stores computed running balance value
 
-### 4.5 CSV export
+### 4.6 CSV export
 - Output header required: `data,kwota,typ,opis`
 - Export all current transactions
 - Filename format: `cashflow_RRRR-MM-DD.csv`
 - Amount exported as positive numeric value (semantic sign in `typ`)
 
-### 4.6 CSV import
+### 4.7 CSV import
 - Input must include header: `data,kwota,typ,opis`
 - Each row validation:
   - valid date
@@ -209,6 +251,7 @@ state = {
     inlineErrors: {},
     editErrors: {},
     editingTransactionId: null,
+    recurrenceErrors: {},
     flashMessage: "",
   },
 };
@@ -246,12 +289,14 @@ Single render orchestrator:
 - `csv` (serialize/parse/report)
 - `render`
 - `edit-modal` (open/close, prefill, save, validation)
+- `recurrence` (interval date generation, batch add, recurrence validation)
 - `events/init`
 
 ## 8) Error Handling Strategy
 
 - Field-level errors shown inline for forms.
 - Field-level errors shown inline for edit modal.
+- Field-level errors shown inline for recurring fields in add form.
 - Import-level errors shown as summary feedback.
 - No crash on malformed CSV rows; skip safely.
 - Clear messaging for empty timeline and invalid config ranges.
@@ -275,6 +320,9 @@ Single render orchestrator:
 - Single transfer can be edited from timeline bubble via modal.
 - Edit validation blocks invalid save (including out-of-range date).
 - Bubble size remains stable while showing edit affordance.
+- Recurring mode can generate weekly, monthly, and every-N-days series.
+- Recurring descriptions follow `<Tytuł> i/X` numbering.
+- Out-of-range occurrences are skipped with `added/skipped` feedback.
 - Negative balance values are red; top bar warns if negative occurred historically.
 - Form validation works and prevents invalid transaction submission.
 - CSV import/export works with required schema and reports skipped rows.
@@ -295,6 +343,12 @@ Single render orchestrator:
 - Set edited date outside range and confirm inline modal error with blocked save.
 - Change edited type (`in`/`out`) and confirm bubble side changes.
 - Verify bubble size does not jump/collide when icon appears on hover.
+- Add weekly recurring series and verify numbering `1/X..X/X`.
+- Add every-N-days recurring series and verify date spacing.
+- Add monthly recurring series from a long month day and verify end-of-month fallback.
+- Verify partial out-of-range generation reports added/skipped counts.
+- Verify full out-of-range generation adds nothing and shows warning.
+- Verify generated records support edit/delete/CSV as standard transactions.
 - Drive running balance below zero and verify red states + top warning.
 - Import mixed-validity CSV and verify imported/skipped counts.
 - Import fully invalid CSV and verify no state changes.
