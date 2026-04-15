@@ -10,6 +10,7 @@ Build a complete, working web app for tracking and visualizing financial transac
 In scope:
 - Timeline configuration (start date, end date, initial balance)
 - Transaction creation with validation
+- Transaction editing (single transfer)
 - Chronological timeline rendering with running balance
 - CSV import and export
 - Live balance and statistics panel
@@ -36,6 +37,13 @@ Out of scope:
 - If any running balance is negative at least once, top bar shows warning info.
 - CSV amount format uses decimal dot.
 - Same-day ordering rule: `in` before `out`.
+- Single transfer editing uses one shared modal.
+- Edit action appears as a pencil icon in transaction bubble:
+  - desktop: visible on hover/focus
+  - mobile: always visible
+- Editing allows changing all fields: date, amount, type, description.
+- Edit save is blocked when edited date is outside timeline range.
+- Transaction bubble size remains visually stable during hover and edit affordance display.
 
 ## 3) UX and Visual Design
 
@@ -71,6 +79,16 @@ Out of scope:
   - `in`: green (`#4ade80`-like)
   - `out`: red (`#f87171`-like)
   - negative balance: red emphasis
+- Bubble actions:
+  - show pencil edit icon per transaction
+  - icon appears without affecting bubble layout flow
+
+### Edit modal
+- One global modal shared by all transactions.
+- Fields: date, amount, type, description.
+- Actions: cancel and save.
+- Validation errors shown inline in modal.
+- Closing without save keeps original transaction data.
 
 ### Empty state
 - Friendly message with guidance to add a transaction or import CSV.
@@ -107,7 +125,26 @@ Validation behavior:
 - inline validation errors for invalid fields
 - if date outside range, submission blocked and inline error shown
 
-### 4.3 Sorting and running balance
+### 4.3 Edit transaction (single transfer)
+- Trigger:
+  - Click pencil icon on a transaction bubble.
+- Behavior:
+  - open modal prefilled with selected transaction data
+  - allow editing date, amount, type, description
+  - save updates existing transaction by `id`
+  - cancel closes modal without changes
+- Validation:
+  - same rules as add transaction
+  - edited date must be in configured timeline range
+  - invalid input blocks save and shows inline modal errors
+- Effects after successful save:
+  - sort transactions by existing rules
+  - recalculate running balances
+  - refresh statistics and top-bar negative-history indicator
+  - move bubble side if type changes (`in` left, `out` right)
+  - keep bubble size constraints stable (no UI jump)
+
+### 4.4 Sorting and running balance
 - Data model:
   - `transactions: Array<{ id, date, amount, type, description }>`
 - Sorting order:
@@ -120,13 +157,13 @@ Validation behavior:
   - each `out` subtracts amount
   - each rendered point stores computed running balance value
 
-### 4.4 CSV export
+### 4.5 CSV export
 - Output header required: `data,kwota,typ,opis`
 - Export all current transactions
 - Filename format: `cashflow_RRRR-MM-DD.csv`
 - Amount exported as positive numeric value (semantic sign in `typ`)
 
-### 4.5 CSV import
+### 4.6 CSV import
 - Input must include header: `data,kwota,typ,opis`
 - Each row validation:
   - valid date
@@ -170,6 +207,8 @@ state = {
   nextId: 1,
   ui: {
     inlineErrors: {},
+    editErrors: {},
+    editingTransactionId: null,
     flashMessage: "",
   },
 };
@@ -196,6 +235,7 @@ Single render orchestrator:
   - left panel cards (config, add transaction, stats)
   - right panel timeline container
   - hidden file input for CSV import
+  - edit modal markup
 - `script`: all JS logic and event wiring
 
 ### JS module-style sections in one script
@@ -205,11 +245,13 @@ Single render orchestrator:
 - `compute` (sorting, running balance, stats)
 - `csv` (serialize/parse/report)
 - `render`
+- `edit-modal` (open/close, prefill, save, validation)
 - `events/init`
 
 ## 8) Error Handling Strategy
 
 - Field-level errors shown inline for forms.
+- Field-level errors shown inline for edit modal.
 - Import-level errors shown as summary feedback.
 - No crash on malformed CSV rows; skip safely.
 - Clear messaging for empty timeline and invalid config ranges.
@@ -220,6 +262,8 @@ Single render orchestrator:
 - Controls maintain usable touch targets at 375px width.
 - Sufficient color contrast in dark theme.
 - Inputs have labels; buttons have clear text labels.
+- Edit icon remains keyboard reachable/focusable.
+- Modal supports Escape and backdrop close patterns.
 
 ## 10) Acceptance Criteria
 
@@ -228,6 +272,9 @@ Single render orchestrator:
 - Desktop shows two columns with forms/stats on left and timeline on right.
 - Axis displays date and running balance; bubbles show transaction details.
 - `in` renders left of axis; `out` renders right of axis with minus display.
+- Single transfer can be edited from timeline bubble via modal.
+- Edit validation blocks invalid save (including out-of-range date).
+- Bubble size remains stable while showing edit affordance.
 - Negative balance values are red; top bar warns if negative occurred historically.
 - Form validation works and prevents invalid transaction submission.
 - CSV import/export works with required schema and reports skipped rows.
@@ -243,6 +290,11 @@ Single render orchestrator:
 - Add same-day `in` and `out` and verify ordering (`in` then `out`).
 - Confirm side placement (`in` left, `out` right).
 - Confirm `out` amount displays minus sign.
+- Open edit modal from bubble icon and confirm prefilled values.
+- Edit each field and save; confirm timeline and stats update.
+- Set edited date outside range and confirm inline modal error with blocked save.
+- Change edited type (`in`/`out`) and confirm bubble side changes.
+- Verify bubble size does not jump/collide when icon appears on hover.
 - Drive running balance below zero and verify red states + top warning.
 - Import mixed-validity CSV and verify imported/skipped counts.
 - Import fully invalid CSV and verify no state changes.
