@@ -113,6 +113,42 @@
       gap: 8px;
     }
 
+    .stats-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stats-icon {
+      width: 14px;
+      height: 14px;
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      color: currentColor;
+    }
+
+    .stats-icon i {
+      display: block;
+      width: 3px;
+      border-radius: 2px 2px 0 0;
+      background: currentColor;
+    }
+
+    .stats-icon i:nth-child(1) {
+      height: 6px;
+      opacity: 0.75;
+    }
+
+    .stats-icon i:nth-child(2) {
+      height: 11px;
+    }
+
+    .stats-icon i:nth-child(3) {
+      height: 8px;
+      opacity: 0.85;
+    }
+
     .btn {
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -139,6 +175,16 @@
     .btn-primary:hover {
       border-color: rgba(122, 162, 247, 0.75);
       background: rgba(122, 162, 247, 0.24);
+    }
+
+    .btn-ghost {
+      border-color: rgba(86, 95, 137, 0.74);
+      background: transparent;
+    }
+
+    .btn-ghost:hover {
+      border-color: rgba(122, 162, 247, 0.55);
+      background: rgba(122, 162, 247, 0.08);
     }
 
     .layout {
@@ -169,6 +215,24 @@
     .card h2 {
       margin: 0 0 10px;
       font-size: 1rem;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card-head h2 {
+      margin: 0;
+    }
+
+    .stats-open-btn {
+      padding: 7px 10px;
+      font-size: 0.8rem;
+      white-space: nowrap;
     }
 
     .form-row {
@@ -548,6 +612,47 @@
       margin-top: 4px;
     }
 
+    .stats-modal-card {
+      width: min(820px, 100%);
+      max-height: min(86vh, 780px);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 10px;
+    }
+
+    .stats-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .stats-modal-head h2 {
+      margin: 0;
+    }
+
+    .stats-modal-body {
+      display: grid;
+      gap: 12px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .stats-section {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      background: var(--surface-2);
+    }
+
+    .stats-section h3 {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
     .axis-core {
       position: relative;
       z-index: 1;
@@ -628,6 +733,21 @@
     }
 
     @media (max-width: 700px) {
+      .top-actions .stats-trigger .btn-label {
+        display: none;
+      }
+
+      .top-actions .stats-trigger {
+        min-width: 40px;
+        justify-content: center;
+        padding-left: 9px;
+        padding-right: 9px;
+      }
+
+      .stats-open-btn .btn-label {
+        display: inline;
+      }
+
       .timeline-item {
         gap: 6px;
       }
@@ -651,6 +771,14 @@
 
       .stats-grid {
         grid-template-columns: 1fr;
+      }
+
+      .stats-modal-card {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        border-radius: 0;
+        padding: 12px;
       }
     }
 
@@ -678,6 +806,17 @@
     </div>
 
     <div class="top-actions">
+      <button
+        id="openStatsFromTopBtn"
+        type="button"
+        class="btn stats-trigger"
+        aria-haspopup="dialog"
+        aria-controls="statsModal"
+        aria-label="Otwórz statystyki"
+      >
+        <span class="stats-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="btn-label">Statystyki</span>
+      </button>
       <button id="importCsvBtn" type="button" class="btn">Import CSV</button>
       <button id="exportCsvBtn" type="button" class="btn btn-primary">Eksport CSV</button>
       <input id="csvFileInput" type="file" accept=".csv,text/csv" hidden>
@@ -786,31 +925,36 @@
       </section>
 
       <section class="card">
-        <h2>Statystyki</h2>
+        <div class="card-head">
+          <h2>Statystyki</h2>
+          <button
+            id="openStatsFromPanelBtn"
+            type="button"
+            class="btn btn-ghost stats-open-btn stats-trigger"
+            aria-haspopup="dialog"
+            aria-controls="statsModal"
+            aria-label="Otwórz pełne statystyki"
+          >
+            <span class="stats-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="btn-label">Pełne statystyki</span>
+          </button>
+        </div>
         <div class="stats-grid">
           <div class="stat">
             <div class="stat-label">Ilość operacji</div>
             <div id="statOperations" class="stat-value">0</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Suma wpłat</div>
-            <div id="statIn" class="stat-value">0,00 PLN</div>
+            <div class="stat-label">Bilans netto</div>
+            <div id="statNetFlow" class="stat-value">0,00 PLN</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Suma wypłat</div>
-            <div id="statOut" class="stat-value">0,00 PLN</div>
+            <div class="stat-label">Czas na minusie (dni)</div>
+            <div id="statNegativeDays" class="stat-value">0</div>
           </div>
           <div class="stat">
-            <div class="stat-label">Money flow</div>
-            <div id="statFlow" class="stat-value">0,00 PLN</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Punkty na minusie</div>
-            <div id="statNegativePoints" class="stat-value">0</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Wejścia na minus</div>
-            <div id="statNegativeEntries" class="stat-value">0</div>
+            <div class="stat-label">Liczba okresów ujemnych</div>
+            <div id="statNegativePeriods" class="stat-value">0</div>
           </div>
         </div>
       </section>
@@ -876,6 +1020,83 @@
     </div>
   </div>
 
+  <div id="statsModal" class="modal-backdrop" hidden>
+    <div class="modal-card stats-modal-card" role="dialog" aria-modal="true" aria-labelledby="statsModalTitle">
+      <div class="stats-modal-head">
+        <h2 id="statsModalTitle">Pełne statystyki</h2>
+        <button id="closeStatsModalBtn" type="button" class="btn btn-ghost">Zamknij</button>
+      </div>
+
+      <div class="stats-modal-body">
+        <section class="stats-section">
+          <h3>Wolumen</h3>
+          <div class="stats-grid">
+            <div class="stat">
+              <div class="stat-label">Ilość operacji</div>
+              <div id="modalStatOperations" class="stat-value">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Liczba wpłat</div>
+              <div id="modalStatInCount" class="stat-value">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Liczba wypłat</div>
+              <div id="modalStatOutCount" class="stat-value">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Suma wpłat</div>
+              <div id="modalStatInSum" class="stat-value">0,00 PLN</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Suma wypłat</div>
+              <div id="modalStatOutSum" class="stat-value">0,00 PLN</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="stats-section">
+          <h3>Średnie i interwały</h3>
+          <div class="stats-grid">
+            <div class="stat">
+              <div class="stat-label">Średnia wpłata</div>
+              <div id="modalStatInAvg" class="stat-value">-</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Średnia wypłata</div>
+              <div id="modalStatOutAvg" class="stat-value">-</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Śr. interwał wpłat (dni)</div>
+              <div id="modalStatInInterval" class="stat-value">-</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Śr. interwał wypłat (dni)</div>
+              <div id="modalStatOutInterval" class="stat-value">-</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="stats-section">
+          <h3>Saldo i ryzyko</h3>
+          <div class="stats-grid">
+            <div class="stat">
+              <div class="stat-label">Bilans netto</div>
+              <div id="modalStatNetFlow" class="stat-value">0,00 PLN</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Czas na minusie (dni)</div>
+              <div id="modalStatNegativeDays" class="stat-value">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Liczba okresów ujemnych</div>
+              <div id="modalStatNegativePeriods" class="stat-value">0</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <script>
     const state = {
       timelineConfig: {
@@ -890,6 +1111,7 @@
         configError: "",
         editingTransactionId: null,
         lastEditTrigger: null,
+        lastStatsTrigger: null,
         undoDelete: null,
         undoTimeoutId: null,
         txErrors: {
@@ -913,6 +1135,85 @@
       maximumFractionDigits: 2
     });
     const DELETE_FLASH_MESSAGE = "Transfer usunięty.";
+
+    function formatDaysValue(value) {
+      if (!Number.isFinite(value)) {
+        return "-";
+      }
+      return numberFormatter.format(value);
+    }
+
+    function getAverageValue(sum, count) {
+      if (!Number.isFinite(sum) || !Number.isFinite(count) || count <= 0) {
+        return null;
+      }
+      return sum / count;
+    }
+
+    function getAverageIntervalDays(dates) {
+      if (!Array.isArray(dates) || dates.length < 2) {
+        return null;
+      }
+
+      const sorted = [...dates].sort();
+      let totalDays = 0;
+      for (let i = 1; i < sorted.length; i += 1) {
+        const previous = isoToUtcDate(sorted[i - 1]);
+        const current = isoToUtcDate(sorted[i]);
+        const diff = Math.round((current.getTime() - previous.getTime()) / 86400000);
+        totalDays += diff;
+      }
+      return totalDays / (sorted.length - 1);
+    }
+
+    function buildDailyEndBalances(rows) {
+      const byDate = new Map();
+      rows.forEach((row) => {
+        byDate.set(row.date, row.runningBalance);
+      });
+      return byDate;
+    }
+
+    function computeNegativeDayMetrics(rows) {
+      const hasRange = Boolean(state.timelineConfig.startDate && state.timelineConfig.endDate);
+      if (!hasRange) {
+        return {
+          negativeDays: 0,
+          negativePeriods: 0,
+          hadNegative: false
+        };
+      }
+
+      const endBalancesByDay = buildDailyEndBalances(rows);
+      let date = state.timelineConfig.startDate;
+      let currentBalance = Number(state.timelineConfig.initialBalance) || 0;
+      let negativeDays = 0;
+      let negativePeriods = 0;
+      let previousNegative = false;
+
+      while (date <= state.timelineConfig.endDate) {
+        if (endBalancesByDay.has(date)) {
+          currentBalance = endBalancesByDay.get(date);
+        }
+
+        const isNegative = currentBalance < 0;
+        if (isNegative) {
+          negativeDays += 1;
+          if (!previousNegative) {
+            negativePeriods += 1;
+          }
+        }
+
+        previousNegative = isNegative;
+        date = addDaysUtc(date, 1);
+      }
+
+      return {
+        negativeDays,
+        negativePeriods,
+        hadNegative: negativeDays > 0
+      };
+    }
 
     function formatCurrency(value) {
       const normalized = Number.isFinite(value) ? value : 0;
@@ -1013,36 +1314,40 @@
     function computeStats(rows) {
       let totalIn = 0;
       let totalOut = 0;
-      let negativePoints = 0;
-      let negativeEntries = 0;
-      let hadNegative = Number(state.timelineConfig.initialBalance) < 0;
-      let previousBalance = Number(state.timelineConfig.initialBalance) || 0;
+      let countIn = 0;
+      let countOut = 0;
+      const inDates = [];
+      const outDates = [];
 
       rows.forEach((row) => {
         if (row.type === "in") {
           totalIn += row.amount;
+          countIn += 1;
+          inDates.push(row.date);
         } else {
           totalOut += row.amount;
+          countOut += 1;
+          outDates.push(row.date);
         }
-
-        if (row.runningBalance < 0) {
-          negativePoints += 1;
-          hadNegative = true;
-          if (previousBalance >= 0) {
-            negativeEntries += 1;
-          }
-        }
-        previousBalance = row.runningBalance;
       });
+
+      const negativeMetrics = computeNegativeDayMetrics(rows);
+      const flow = totalIn - totalOut;
 
       return {
         operations: rows.length,
         totalIn,
         totalOut,
-        flow: totalIn - totalOut,
-        negativePoints,
-        negativeEntries,
-        hadNegative
+        flow,
+        countIn,
+        countOut,
+        averageIn: getAverageValue(totalIn, countIn),
+        averageOut: getAverageValue(totalOut, countOut),
+        averageIntervalInDays: getAverageIntervalDays(inDates),
+        averageIntervalOutDays: getAverageIntervalDays(outDates),
+        negativeDays: negativeMetrics.negativeDays,
+        negativePeriods: negativeMetrics.negativePeriods,
+        hadNegative: negativeMetrics.hadNegative
       };
     }
 
@@ -1061,15 +1366,56 @@
     }
 
     function renderStats(stats) {
-      const statFlow = document.getElementById("statFlow");
+      const quickNetFlowElement = document.getElementById("statNetFlow");
+      const modalNetFlowElement = document.getElementById("modalStatNetFlow");
 
       document.getElementById("statOperations").textContent = String(stats.operations);
-      document.getElementById("statIn").textContent = formatCurrency(stats.totalIn);
-      document.getElementById("statOut").textContent = formatCurrency(stats.totalOut);
-      statFlow.textContent = formatCurrency(stats.flow);
-      statFlow.classList.toggle("negative", stats.flow < 0);
-      document.getElementById("statNegativePoints").textContent = String(stats.negativePoints);
-      document.getElementById("statNegativeEntries").textContent = String(stats.negativeEntries);
+      quickNetFlowElement.textContent = formatCurrency(stats.flow);
+      quickNetFlowElement.classList.toggle("negative", stats.flow < 0);
+      document.getElementById("statNegativeDays").textContent = String(stats.negativeDays);
+      document.getElementById("statNegativePeriods").textContent = String(stats.negativePeriods);
+
+      document.getElementById("modalStatOperations").textContent = String(stats.operations);
+      document.getElementById("modalStatInCount").textContent = String(stats.countIn);
+      document.getElementById("modalStatOutCount").textContent = String(stats.countOut);
+      document.getElementById("modalStatInSum").textContent = formatCurrency(stats.totalIn);
+      document.getElementById("modalStatOutSum").textContent = formatCurrency(stats.totalOut);
+      document.getElementById("modalStatInAvg").textContent = stats.averageIn === null ? "-" : formatCurrency(stats.averageIn);
+      document.getElementById("modalStatOutAvg").textContent = stats.averageOut === null ? "-" : formatCurrency(stats.averageOut);
+      document.getElementById("modalStatInInterval").textContent = stats.averageIntervalInDays === null ? "-" : formatDaysValue(stats.averageIntervalInDays);
+      document.getElementById("modalStatOutInterval").textContent = stats.averageIntervalOutDays === null ? "-" : formatDaysValue(stats.averageIntervalOutDays);
+      modalNetFlowElement.textContent = formatCurrency(stats.flow);
+      modalNetFlowElement.classList.toggle("negative", stats.flow < 0);
+      document.getElementById("modalStatNegativeDays").textContent = String(stats.negativeDays);
+      document.getElementById("modalStatNegativePeriods").textContent = String(stats.negativePeriods);
+    }
+
+    function isStatsModalOpen() {
+      return document.getElementById("statsModal").classList.contains("open");
+    }
+
+    function openStatsModal(triggerElement) {
+      const modal = document.getElementById("statsModal");
+      state.ui.lastStatsTrigger = triggerElement || null;
+      modal.hidden = false;
+      modal.classList.add("open");
+      document.getElementById("closeStatsModalBtn").focus();
+    }
+
+    function closeStatsModal(restoreFocus = true) {
+      if (!isStatsModalOpen()) {
+        state.ui.lastStatsTrigger = null;
+        return;
+      }
+
+      const modal = document.getElementById("statsModal");
+      modal.classList.remove("open");
+      modal.hidden = true;
+
+      if (restoreFocus && state.ui.lastStatsTrigger instanceof HTMLElement) {
+        state.ui.lastStatsTrigger.focus();
+      }
+      state.ui.lastStatsTrigger = null;
     }
 
     function renderTimeline(rows) {
@@ -1933,9 +2279,50 @@
       }
     }
 
+    function handleStatsModalBackdropClick(event) {
+      const modal = document.getElementById("statsModal");
+      if (event.target === modal) {
+        closeStatsModal();
+      }
+    }
+
+    function handleOpenStatsClick(event) {
+      openStatsModal(event.currentTarget);
+    }
+
     function handleDocumentKeydown(event) {
+      if (event.key === "Tab" && isStatsModalOpen()) {
+        const modal = document.getElementById("statsModal");
+        const focusable = modal.querySelectorAll(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+
+        if (!focusable.length) {
+          event.preventDefault();
+          return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+
+        if (event.shiftKey && active === first) {
+          event.preventDefault();
+          last.focus();
+          return;
+        }
+
+        if (!event.shiftKey && active === last) {
+          event.preventDefault();
+          first.focus();
+          return;
+        }
+      }
+
       if (event.key === "Escape" && isEditModalOpen()) {
         closeEditModal();
+      } else if (event.key === "Escape" && isStatsModalOpen()) {
+        closeStatsModal();
       }
     }
 
@@ -1994,6 +2381,8 @@
       document.getElementById("importCsvBtn").addEventListener("click", () => {
         document.getElementById("csvFileInput").click();
       });
+      document.getElementById("openStatsFromTopBtn").addEventListener("click", handleOpenStatsClick);
+      document.getElementById("openStatsFromPanelBtn").addEventListener("click", handleOpenStatsClick);
       document.getElementById("exportCsvBtn").addEventListener("click", exportCsv);
       document.getElementById("csvFileInput").addEventListener("change", handleCsvFileChange);
 
@@ -2011,6 +2400,8 @@
       document.getElementById("editTypeOut").addEventListener("change", handleEditTypeChange);
       document.getElementById("timelineList").addEventListener("click", handleTimelineClick);
       document.getElementById("editModal").addEventListener("click", handleModalBackdropClick);
+      document.getElementById("statsModal").addEventListener("click", handleStatsModalBackdropClick);
+      document.getElementById("closeStatsModalBtn").addEventListener("click", () => closeStatsModal());
       document.getElementById("undoDeleteBtn").addEventListener("click", handleUndoDelete);
 
       document.addEventListener("keydown", handleDocumentKeydown);
